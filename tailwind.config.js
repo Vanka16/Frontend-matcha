@@ -1,0 +1,73 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  // Bootstrap sudah membawa "reboot" sendiri, jadi preflight Tailwind dimatikan agar tidak bentrok.
+  corePlugins: { preflight: false },
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      colors: {
+        matcha: {
+          50: '#f0f6d8',
+          100: '#e2efb4',
+          200: '#c9e286',
+          300: '#addb5c',
+          400: '#84c030',
+          500: '#64a51b',
+          600: '#4a8a12',
+          700: '#37700d',
+          800: '#285409',
+          900: '#173a0a',
+        },
+      },
+      keyframes: {
+        'fade-up': { '0%': { opacity: '0', transform: 'translate3d(0,14px,0)' }, '100%': { opacity: '1', transform: 'translate3d(0,0,0)' } },
+        'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        'slide-right': { '0%': { opacity: '0', transform: 'translate3d(-16px,0,0)' }, '100%': { opacity: '1', transform: 'translate3d(0,0,0)' } },
+        'pop-in': { '0%': { opacity: '0', transform: 'translate3d(0,12px,0) scale(.98)' }, '100%': { opacity: '1', transform: 'translate3d(0,0,0) scale(1)' } },
+        float: { '0%,100%': { transform: 'translate3d(0,0,0) rotate(-1deg)' }, '50%': { transform: 'translate3d(0,-10px,0) rotate(1deg)' } },
+        drift: { '0%,100%': { transform: 'translate3d(-2.5%,0,0) scaleX(1.06)' }, '50%': { transform: 'translate3d(2.5%,0,0) scaleX(1.06)' } },
+        wiggle: { '0%,100%': { transform: 'rotate(0)' }, '25%': { transform: 'rotate(-14deg)' }, '75%': { transform: 'rotate(14deg)' } },
+        'leaf-sway': { '0%,100%': { transform: 'translate3d(0,0,0) rotate(var(--r,0deg))' }, '50%': { transform: 'translate3d(10px,-18px,0) rotate(calc(var(--r,0deg) + 18deg))' } },
+        'leaf-fall': {
+          '0%': { transform: 'translate3d(0,-40px,0) rotate(var(--r,0deg))', opacity: '0' },
+          '10%': { opacity: '.9' },
+          '30%': { transform: 'translate3d(36px,160px,0) rotate(calc(var(--r,0deg) + 110deg))' },
+          '60%': { transform: 'translate3d(-24px,380px,0) rotate(calc(var(--r,0deg) + 230deg))' },
+          '90%': { opacity: '.9' },
+          '100%': { transform: 'translate3d(20px,640px,0) rotate(calc(var(--r,0deg) + 360deg))', opacity: '0' },
+        },
+        blob: { '0%,100%': { transform: 'translate3d(0,0,0) scale(1)' }, '50%': { transform: 'translate3d(24px,-22px,0) scale(1.12)' } },
+        marquee: { '0%': { transform: 'translate3d(0,0,0)' }, '100%': { transform: 'translate3d(-50%,0,0)' } },
+        twinkle: { '0%,100%': { opacity: '.25', transform: 'scale(.7) rotate(0deg)' }, '50%': { opacity: '1', transform: 'scale(1.15) rotate(45deg)' } },
+        bubble: { '0%': { transform: 'translate3d(0,0,0) scale(.6)', opacity: '0' }, '25%': { opacity: '.8' }, '100%': { transform: 'translate3d(0,-130px,0) scale(1)', opacity: '0' } },
+        ring: { '0%': { transform: 'scale(.94)', opacity: '.55' }, '100%': { transform: 'scale(1.18)', opacity: '0' } },
+        shine: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+      },
+      animation: {
+        'fade-up': 'fade-up 1.4s cubic-bezier(.16,1,.3,1) both',
+        'fade-in': 'fade-in 1.4s ease-out both',
+        'slide-right': 'slide-right 1.4s cubic-bezier(.16,1,.3,1) both',
+        'pop-in': 'pop-in 1.4s cubic-bezier(.16,1,.3,1) both',
+        float: 'float 9s cubic-bezier(.45,0,.55,1) infinite',
+        drift: 'drift 26s cubic-bezier(.45,0,.55,1) infinite',
+        'drift-slow': 'drift 34s cubic-bezier(.45,0,.55,1) infinite reverse',
+        wiggle: 'wiggle .8s ease-in-out',
+        'leaf-sway': 'leaf-sway 9s cubic-bezier(.45,0,.55,1) infinite',
+        'leaf-fall': 'leaf-fall 16s linear infinite',
+        blob: 'blob 14s cubic-bezier(.45,0,.55,1) infinite',
+        marquee: 'marquee 32s linear infinite',
+        twinkle: 'twinkle 3.6s ease-in-out infinite',
+        bubble: 'bubble 5s ease-out infinite',
+        ring: 'ring 4.5s ease-out infinite',
+      },
+      boxShadow: {
+        soft: '0 2px 14px rgba(47, 82, 25, 0.07)',
+        lift: '0 14px 30px rgba(47, 82, 25, 0.15)',
+      },
+    },
+  },
+  plugins: [],
+}
