@@ -1,48 +1,43 @@
-import api, { API_URL, USE_MOCK } from './api'
+import api from './api'
 
 /**
- * KONTRAK API YANG DIHARAPKAN (silakan sesuaikan dengan backend kamu):
+ * Kontrak API backend (Express):
  *
- * POST /auth/login     body: { email, password }
- *   -> { token: "xxx", user: { id, name, email, role: "admin" | "konsumen" } }
+ * POST /users/login     body: { email, password }
+ *   -> { success, message, data: { token, user: { id, name, email, role } } }
  *
- * POST /auth/register  body: { name, email, password }
- *   -> { token, user }   (atau cukup { message } lalu user diarahkan ke login)
+ * POST /users/register  body: { name, email, password, role? }
+ *   -> { success, message, data: user }   (belum mengembalikan token)
  *
- * GET  /auth/google    -> redirect OAuth Google, lalu kembali ke /auth/callback?token=...
+ * Backend memakai role ADMIN / CUSTOMER, frontend memakai admin / konsumen.
  */
 
-const mockUser = (email, name) => ({
-  token: 'mock-token',
-  user: {
-    id: 1,
-    name: name || (email.startsWith('admin') ? 'Admin Telang' : 'Nadia Putri'),
-    email,
-    role: email.startsWith('admin') ? 'admin' : 'konsumen',
-  },
-})
+const normalizeRole = (role) => (String(role).toUpperCase() === 'ADMIN' ? 'admin' : 'konsumen')
+
+/** Buka envelope { success, message, data } dan samakan bentuk role. */
+const normalizeAuth = (payload) => {
+  const data = payload?.data ?? payload
+  if (!data?.token || !data?.user) {
+    throw new Error(payload?.message || 'Respons autentikasi dari server tidak valid')
+  }
+  return {
+    token: data.token,
+    user: { ...data.user, role: normalizeRole(data.user.role) },
+  }
+}
 
 export async function login({ email, password }) {
-  if (USE_MOCK) {
-    if (!email || !password) throw new Error('Email dan password wajib diisi')
-    return mockUser(email)
-  }
-  const { data } = await api.post('/auth/login', { email, password })
-  return data
+  const { data } = await api.post('/users/login', { email, password })
+  return normalizeAuth(data)
 }
 
 export async function register({ name, email, password }) {
-  if (USE_MOCK) {
-    return mockUser(email, name)
-  }
-  const { data } = await api.post('/auth/register', { name, email, password })
-  return data
+  // Backend hanya membuat akun, jadi login sekali lagi untuk mendapatkan token.
+  await api.post('/users/register', { name, email, password })
+  const { data } = await api.post('/users/login', { email, password })
+  return normalizeAuth(data)
 }
 
 export function loginWithGoogle() {
-  if (USE_MOCK) {
-    alert('Login Google akan aktif setelah API terhubung.')
-    return
-  }
-  window.location.href = `${API_URL}/auth/google`
+  alert('Login Google belum tersedia di backend. Silakan masuk dengan email dan password.')
 }

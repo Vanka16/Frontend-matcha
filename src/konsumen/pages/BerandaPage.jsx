@@ -1,10 +1,31 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import DrinkImage from '../../shared/components/DrinkImage'
 import ProductCard from '../components/ProductCard'
-import { menu } from '../data/menu'
+import { getProducts } from '../services/productService'
 
 export default function BerandaPage() {
   const navigate = useNavigate()
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    getProducts()
+      .then((list) => {
+        if (active) setProducts(list.slice(0, 4))
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || 'Gagal memuat produk dari server.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <div className="w-full">
@@ -32,11 +53,27 @@ export default function BerandaPage() {
       {/* Paling banyak dicari */}
       <section className="mt-8">
         <h3 className="text-base font-bold text-matcha-900">Paling Banyak Dicari Bulan Ini 👑</h3>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {menu.map((p) => (
-            <ProductCard key={p.id} product={p} onAdd={() => navigate('/konsumen/katalog')} />
-          ))}
-        </div>
+
+        {loading && (
+          <p className="mt-4 text-sm text-stone-500">
+            <i className="bi bi-arrow-repeat mr-2 animate-spin text-matcha-700" />
+            Memuat produk...
+          </p>
+        )}
+
+        {!loading && error && <p className="mt-4 text-sm text-stone-600">{error}</p>}
+
+        {!loading && !error && products.length === 0 && (
+          <p className="mt-4 text-sm text-stone-500">Belum ada produk aktif di server.</p>
+        )}
+
+        {!loading && !error && products.length > 0 && (
+          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} onAdd={() => navigate('/konsumen/katalog')} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

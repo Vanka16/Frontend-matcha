@@ -3,61 +3,76 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../shared/auth/AuthContext'
 import { rupiah } from '../../shared/utils/format'
 import { useCart } from '../context/CartContext'
-import { saveOrder } from '../services/orderService'
-import {
-  DISKON_MEMBER,
-  GERAI,
-  ONGKIR_FLAT,
-  hitungOngkir,
-  orderTypes,
-  pickupOptions,
-} from '../data/menu'
+import { createOrder } from '../../shared/services/orderService'
+import { GERAI, ONGKIR_FLAT, hitungOngkir, orderTypes, pickupOptions } from '../data/menu'
 
 export default function CheckoutPage() {
-  const { items, count, subtotal } = useCart()
+  const { items, count, subtotal, clear } = useCart()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth() // tamu (belum login) tetap bisa checkout
+  const { user } = useAuth()
   const [type, setType] = useState('antar')
   const [form, setForm] = useState({ name: user?.name || '', phone: '', address: '' })
   const [pickup, setPickup] = useState(pickupOptions[0])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const antar = type === 'antar'
   const ongkir = antar ? hitungOngkir() : 0
-  // Diskon hanya untuk yang login. Backend wajib menghitung ulang diskon ini.
-  const diskon = user ? Math.round(subtotal * DISKON_MEMBER) : 0
-  const total = subtotal - diskon + ongkir
+  const total = subtotal + ongkir
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
   const submit = async (e) => {
     e.preventDefault()
+    setError('')
     setLoading(true)
-    // TODO API: POST /pesanan  (boleh tanpa token untuk tamu)
-    //   body: { items, jenis: type, penerima: { name, phone }, alamat, pickup }
-    //   (ongkir & diskon member dihitung ulang di backend supaya tidak bisa dimanipulasi)
-    const order = {
-      id: `MB-${Date.now().toString().slice(-6)}`,
-      type,
-      items: items.map(({ name, size, sweet, qty, unitPrice, note }) => ({
-        name, size, sweet, qty, unitPrice, note,
+
+    const payload = {
+      items: items.map((item) => ({
+        productId: item.productId,
+        productVariantId: item.productVariantId || null,
+        quantity: item.qty,
       })),
-      subtotal,
-      discount: diskon,
-      shipping: ongkir,
-      total,
-      name: form.name,
-      phone: form.phone,
-      address: antar ? form.address : GERAI,
-      pickup: antar ? null : pickup,
-      status: 'Menunggu Pembayaran',
-      createdAt: Date.now(),
+      customerName: form.name,
+      customerPhone: form.phone,
+      shippingAddress: antar ? form.address : `Ambil di ${GERAI} · ${pickup}`,
+      shippingFee: ongkir,
     }
-    sessionStorage.setItem('matcha_order', JSON.stringify(order))
-    saveOrder(user, order) // masuk Riwayat Pesanan (login: ke akun, tamu: ke perangkat ini)
-    setLoading(false)
-    navigate('/konsumen/pembayaran')
+
+    try {
+      const order = await createOrder(payload)
+      // Halaman pembayaran akan meminta token Midtrans untuk order ini.
+      sessionStorage.setItem('matcha_order', JSON.stringify(order))
+      clear()
+      navigate('/konsumen/pembayaran')
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Gagal membuat pesanan. Coba lagi.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="card-soft mx-auto max-w-lg p-10 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-matcha-100 text-2xl text-matcha-700">
+          <i className="bi bi-person-lock" />
+        </div>
+        <h2 className="mt-3 text-base font-bold text-matcha-900">Masuk dulu untuk checkout</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Pesanan akan disimpan ke akunmu dan pembayaran diproses melalui Midtrans.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Link to="/login" state={{ from: location }} className="btn-matcha no-underline">
+            Masuk
+          </Link>
+          <Link to="/daftar" state={{ from: location }} className="btn-outline-matcha no-underline">
+            Daftar
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   if (items.length === 0) {
@@ -106,9 +121,7 @@ export default function CheckoutPage() {
                       <span className="block text-sm font-semibold text-matcha-900">{o.title}</span>
                       <span className="block text-xs text-stone-500">{o.desc}</span>
                       <span className="block text-xs font-semibold text-matcha-700">
-                        {o.key === 'antar'
-                          ? `Ongkir flat ${rupiah(ONGKIR_FLAT)}`
-                          : 'Gratis ongkir'}
+                        {o.key === 'antar' ? `Ongkir flat ${rupiah(ONGKIR_FLAT)}` : 'Gratis ongkir'}
                       </span>
                     </span>
                   </button>
@@ -171,22 +184,6 @@ export default function CheckoutPage() {
         </div>
 
         <div className="col-12 col-lg-4">
-          {!user && (
-            <div className="mb-3 rounded-2xl border border-matcha-200 bg-matcha-50 p-4 text-xs text-stone-600">
-              <div className="mb-1 text-sm font-bold text-matcha-900">
-                <i className="bi bi-stars mr-1 text-matcha-700" />
-                Dapat diskon {Math.round(DISKON_MEMBER * 100)}%
-              </div>
-              <Link to="/login" state={{ from: location }} className="font-semibold text-matcha-700">
-                Masuk
-              </Link>{' '}
-              atau{' '}
-              <Link to="/daftar" state={{ from: location }} className="font-semibold text-matcha-700">
-                daftar
-              </Link>{' '}
-              untuk diskon member dan menyimpan riwayat pesanan di akunmu. Kamu juga bisa lanjut tanpa akun, riwayat tetap tersimpan di perangkat ini.
-            </div>
-          )}
           <div className="card-soft p-5">
             <h3 className="text-sm font-bold text-matcha-900">Ringkasan</h3>
             <dl className="mt-4 space-y-2 text-sm">
@@ -194,12 +191,6 @@ export default function CheckoutPage() {
                 <dt className="text-stone-500">{count} item pesanan</dt>
                 <dd className="font-semibold">{rupiah(subtotal)}</dd>
               </div>
-              {user && (
-                <div className="flex justify-between">
-                  <dt className="text-stone-500">Diskon member ({Math.round(DISKON_MEMBER * 100)}%)</dt>
-                  <dd className="font-semibold text-matcha-700">- {rupiah(diskon)}</dd>
-                </div>
-              )}
               <div className="flex justify-between">
                 <dt className="text-stone-500">Ongkir</dt>
                 <dd className="font-semibold">{antar ? rupiah(ongkir) : <span className="text-matcha-700">Gratis</span>}</dd>
@@ -217,8 +208,14 @@ export default function CheckoutPage() {
             <div className="mt-4 text-xs font-semibold text-stone-600">Metode pembayaran</div>
             <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-matcha-700 bg-matcha-50 px-3 py-2.5 text-sm font-semibold text-matcha-900">
               <i className="bi bi-record-circle-fill text-matcha-700" />
-              QRIS / E-wallet
+              QRIS / E-wallet (Midtrans)
             </div>
+
+            {error && (
+              <div className="mt-3 animate-pop-in rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                {error}
+              </div>
+            )}
 
             <button type="submit" disabled={loading} className="btn-matcha mt-4 w-full">
               {loading ? 'Memproses...' : 'Buat Pesanan & Bayar'}

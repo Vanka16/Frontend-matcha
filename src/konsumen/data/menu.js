@@ -3,7 +3,7 @@
 import { getImage } from '../../shared/utils/assets'
 
 export const menu = [
-  { id: 1, name: 'Iced Matcha Latte', price: 35000, tag: 'Best seller', tone: 'latte', image: getImage('iced-matcha-latte') },
+  { id: 1, name: 'Iced Matcha Latte statis', price: 35000, tag: 'Best seller', tone: 'latte', image: getImage('iced-matcha-latte') },
   { id: 2, name: 'Iced Chocolate Matcha', price: 40000, tag: 'Favorit', tone: 'choco', image: getImage('iced-chocolate-matcha') },
   { id: 3, name: 'Matcha Latte', price: 32000, tag: 'Klasik', tone: 'latte', image: getImage('matcha-latte') },
   { id: 4, name: 'Iced Matcha Milk', price: 38000, tag: 'Baru', tone: 'milk', image: getImage('iced-matcha-milk') },

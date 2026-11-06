@@ -1,52 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../shared/auth/AuthContext'
-import { USE_MOCK } from '../../shared/services/api'
-import { getPaymentStatus, simulateMockPayment } from '../../shared/services/paymentService'
+import { createPaymentToken, getPaymentStatus } from '../../shared/services/paymentService'
 import { rupiah } from '../../shared/utils/format'
-import { useCart } from '../context/CartContext'
-import { updateOrderStatus } from '../services/orderService'
-
-/** QR sementara (placeholder). Ganti dengan gambar QRIS dari API pembayaran. */
-function QrPlaceholder({ seed = 7 }) {
-  const cells = useMemo(() => {
-    const n = 21
-    let s = seed
-    const rand = () => ((s = (s * 9301 + 49297) % 233280) / 233280)
-    const inFinder = (x, y) =>
-      (x < 7 && y < 7) || (x > n - 8 && y < 7) || (x < 7 && y > n - 8)
-    const list = []
-    for (let y = 0; y < n; y++)
-      for (let x = 0; x < n; x++) if (!inFinder(x, y) && rand() > 0.52) list.push([x, y])
-    return list
-  }, [seed])
-
-  const finder = (x, y) => (
-    <g key={`${x}-${y}`}>
-      <rect x={x} y={y} width="7" height="7" fill="#173a0a" />
-      <rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" />
-      <rect x={x + 2} y={y + 2} width="3" height="3" fill="#173a0a" />
-    </g>
-  )
-
-  return (
-    <svg viewBox="0 0 21 21" className="h-24 w-24" shapeRendering="crispEdges">
-      <rect width="21" height="21" fill="#fff" />
-      {cells.map(([x, y]) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="#173a0a" />
-      ))}
-      {finder(0, 0)}
-      {finder(14, 0)}
-      {finder(0, 14)}
-    </svg>
-  )
-}
 
 const steps = [
-  'Buka aplikasi e-wallet atau mobile banking Anda.',
-  'Pilih menu scan QRIS.',
-  'Scan QR di halaman ini dan konfirmasi jumlah pembayaran.',
-  'Selesai! Pembayaran terdeteksi otomatis, kamu tidak perlu menekan tombol apa pun.',
+  'Klik tombol "Buka Pembayaran Midtrans".',
+  'Pilih QRIS atau e-wallet di halaman pembayaran.',
+  'Selesaikan pembayaran sesuai nominal yang tertera.',
+  'Status pesanan diperbarui otomatis setelah pembayaran terverifikasi.',
 ]
 
 const POLL_MS = 3000 // cek status pembayaran tiap 3 detik
@@ -57,26 +18,51 @@ const mmss = (ms) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 }
 
+const readOrder = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('matcha_order'))
+  } catch {
+    return null
+  }
+}
+
 export default function PembayaranPage() {
-  const { clear } = useCart()
-  const { user } = useAuth()
   const navigate = useNavigate()
+  const [order] = useState(readOrder)
   const [status, setStatus] = useState('pending') // pending | paid | expired | failed
   const [netError, setNetError] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [paymentLink, setPaymentLink] = useState('')
+  const [preparingPayment, setPreparingPayment] = useState(false)
+  const [payError, setPayError] = useState('')
   const checking = useRef(false)
-
-  const order = useMemo(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('matcha_order'))
-    } catch {
-      return null
-    }
-  }, [])
+  const tokenRequested = useRef(false)
 
   const expiresAt = order ? order.createdAt + EXPIRE_MS : 0
   const remaining = expiresAt - now
   const waiting = status === 'pending' && remaining > 0
+
+  // Minta token Midtrans sekali saat halaman dibuka (atau saat tombol coba lagi ditekan).
+  const preparePayment = async () => {
+    if (!order || preparingPayment) return
+    setPreparingPayment(true)
+    setPayError('')
+    try {
+      const payment = await createPaymentToken(order.id)
+      setPaymentLink(payment.redirect_url)
+    } catch (err) {
+      setPayError(err.response?.data?.message || err.message || 'Gagal menyiapkan pembayaran.')
+    } finally {
+      setPreparingPayment(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!order || tokenRequested.current || order.status !== 'Menunggu Pembayaran') return
+    tokenRequested.current = true
+    preparePayment()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order])
 
   // Hitung mundur
   useEffect(() => {
@@ -98,8 +84,6 @@ export default function PembayaranPage() {
         if (!alive) return
         setNetError(false)
         if (s === 'paid') {
-          updateOrderStatus(user, order.id, 'Dibayar')
-          clear()
           sessionStorage.removeItem('matcha_order')
           setStatus('paid')
         } else if (s === 'expired' || s === 'failed') {
@@ -121,9 +105,9 @@ export default function PembayaranPage() {
       clearInterval(t)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [order, waiting, clear, user])
+  }, [order, waiting])
 
-  // Setelah lunas, siapa pun (login atau tamu) otomatis dibawa ke Riwayat Pesanan
+  // Setelah lunas, otomatis dibawa ke Riwayat Pesanan
   useEffect(() => {
     if (status !== 'paid') return undefined
     const t = setTimeout(
@@ -164,14 +148,6 @@ export default function PembayaranPage() {
         >
           Lihat Riwayat Pesanan
         </Link>
-        {!user && (
-          <p className="mt-4 text-xs text-stone-500">
-            Mau diskon 5% dan riwayat tersimpan di akun?{' '}
-            <Link to="/daftar" state={{ from: { pathname: '/konsumen/riwayat' } }} className="font-semibold text-matcha-700">
-              Daftar gratis
-            </Link>
-          </p>
-        )}
       </div>
     )
   }
@@ -221,46 +197,52 @@ export default function PembayaranPage() {
               <div>
                 <div className="text-xs text-stone-500">Total pembayaran</div>
                 <div className="mt-1 text-2xl font-extrabold text-matcha-700">{rupiah(order.total)}</div>
-                {order.discount > 0 && (
-                  <div className="mt-1 text-xs font-semibold text-matcha-700">
-                    Sudah termasuk diskon member {rupiah(order.discount)}
-                  </div>
-                )}
                 <div className="mt-1.5 text-xs text-stone-500">
                   {order.type === 'ambil'
-                    ? `Ambil sendiri · ${order.pickup || ''}`
+                    ? `Ambil sendiri · ${order.address}`
                     : `Diantar · ongkir ${rupiah(order.shipping)}`}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="overflow-hidden rounded-xl border border-matcha-200 bg-white p-1.5">
-                  <QrPlaceholder />
-                </div>
-                <div className="text-xs">
-                  <div className="text-stone-500">Metode digital</div>
-                  <div className="font-bold text-matcha-900">QRIS</div>
-                </div>
+              <div className="text-xs text-stone-500">
+                <div className="font-bold text-matcha-900">Metode pembayaran</div>
+                <div>QRIS / E-wallet via Midtrans</div>
+                <div className="mt-1">Pembayaran diverifikasi oleh server, bukan oleh browser.</div>
               </div>
+            </div>
+
+            <div className="mt-5">
+              {preparingPayment && (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-matcha-200 bg-white px-4 py-3 text-sm text-stone-600">
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                  Menyiapkan pembayaran Midtrans...
+                </div>
+              )}
+
+              {!preparingPayment && payError && (
+                <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                  <p>{payError}</p>
+                  <button type="button" onClick={preparePayment} className="btn-outline-matcha mt-2 !py-1.5 text-xs">
+                    Coba lagi
+                  </button>
+                </div>
+              )}
+
+              {!preparingPayment && !payError && paymentLink && (
+                <a
+                  href={paymentLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-matcha flex w-full items-center justify-center gap-2 no-underline"
+                >
+                  <i className="bi bi-box-arrow-up-right" />
+                  Buka Pembayaran Midtrans
+                </a>
+              )}
             </div>
 
             {netError && (
               <div className="mt-4 animate-pop-in rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800" role="status">
                 Koneksi bermasalah, sedang mencoba memeriksa status lagi...
-              </div>
-            )}
-
-            {USE_MOCK && (
-              <div className="mt-5 rounded-xl border border-dashed border-matcha-400 p-3 text-center">
-                <div className="mb-2 text-[11px] text-stone-500">
-                  Mode contoh (tanpa backend). Tombol ini tidak ada di versi asli.
-                </div>
-                <button
-                  type="button"
-                  onClick={() => simulateMockPayment(order.id)}
-                  className="btn-outline-matcha !py-1.5 text-xs"
-                >
-                  Simulasikan pembayaran masuk
-                </button>
               </div>
             )}
           </div>

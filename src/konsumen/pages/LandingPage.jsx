@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Decor, { footerDecor, heroDecor, sectionDecor } from '../../shared/components/Decor'
 import Reveal from '../../shared/components/Reveal'
@@ -7,12 +7,32 @@ import DrinkImage from '../../shared/components/DrinkImage'
 import { homeByRole, useAuth } from '../../shared/auth/AuthContext'
 import ProductCard from '../components/ProductCard'
 import { getImage } from '../../shared/utils/assets'
-import { menu } from '../data/menu'
+import { getProducts } from '../services/productService'
 
 export default function LandingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const sliderRef = useRef(null)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    getProducts()
+      .then((list) => {
+        if (active) setProducts(list)
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || 'Gagal memuat produk dari server.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const scroll = (dir) => sliderRef.current?.scrollBy({ left: dir * 280, behavior: 'smooth' })
   // Menu bisa dipesan tanpa login (login hanya memberi diskon & riwayat pesanan)
@@ -140,11 +160,24 @@ export default function LandingPage() {
           </div>
 
           <div ref={sliderRef} className="mt-8 flex gap-5 overflow-x-auto pb-2 [scrollbar-width:none]">
-            {menu.map((p, i) => (
-              <Reveal key={p.id} delay={i * 120} className="w-64 shrink-0 sm:w-[calc(25%-15px)] sm:min-w-[220px]">
-                <ProductCard product={p} onAdd={goMenu} />
-              </Reveal>
-            ))}
+            {loading &&
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-56 w-64 shrink-0 animate-pulse rounded-2xl bg-white/70 sm:w-[calc(25%-15px)] sm:min-w-[220px]" />
+              ))}
+
+            {!loading && error && <p className="text-sm text-stone-600">{error}</p>}
+
+            {!loading &&
+              !error &&
+              products.map((p, i) => (
+                <Reveal key={p.id} delay={i * 120} className="w-64 shrink-0 sm:w-[calc(25%-15px)] sm:min-w-[220px]">
+                  <ProductCard product={p} onAdd={goMenu} />
+                </Reveal>
+              ))}
+
+            {!loading && !error && products.length === 0 && (
+              <p className="text-sm text-stone-500">Belum ada produk aktif di server.</p>
+            )}
           </div>
         </div>
       </section>

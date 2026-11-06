@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import StatusBadge from '../../admin/components/StatusBadge'
 import { useAuth } from '../../shared/auth/AuthContext'
 import { rupiah } from '../../shared/utils/format'
-import { displayStatus, getOrders } from '../services/orderService'
+import { displayStatus, getOrders } from '../../shared/services/orderService'
 
 const tanggal = (ms) =>
   new Date(ms).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
@@ -58,11 +58,12 @@ export default function RiwayatPesananPage() {
         </div>
         <h2 className="mt-3 text-base font-bold text-matcha-900">Belum ada pesanan</h2>
         <p className="mt-1 text-sm text-stone-500">
-          Pesanan yang kamu buat akan muncul di sini
-          {user ? '.' : ' (tersimpan di perangkat ini, masuk untuk menyimpannya di akun).'}
+          {user
+            ? 'Pesanan yang kamu buat akan muncul di sini.'
+            : 'Masuk ke akunmu untuk melihat riwayat pesanan.'}
         </p>
-        <Link to="/konsumen/katalog" className="btn-matcha mt-4 no-underline">
-          Pilih Menu
+        <Link to={user ? '/konsumen/katalog' : '/login'} state={user ? undefined : { from: location }} className="btn-matcha mt-4 no-underline">
+          {user ? 'Pilih Menu' : 'Masuk'}
         </Link>
       </div>
     )
@@ -74,13 +75,13 @@ export default function RiwayatPesananPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-matcha-200 bg-matcha-50 px-4 py-3 text-xs text-stone-600">
           <span>
             <i className="bi bi-info-circle mr-1.5 text-matcha-700" />
-            Kamu belum masuk, jadi riwayat ini hanya tersimpan di perangkat/browser ini.
+            Kamu belum masuk, jadi riwayat pesanan belum bisa ditampilkan.
           </span>
           <span>
             <Link to="/login" state={{ from: location }} className="font-semibold text-matcha-700">Masuk</Link>
             {' '}atau{' '}
             <Link to="/daftar" state={{ from: location }} className="font-semibold text-matcha-700">daftar</Link>
-            {' '}untuk menyimpannya di akun &amp; dapat diskon 5%.
+            {' '}untuk menyimpan pesanan di akunmu.
           </span>
         </div>
       )}

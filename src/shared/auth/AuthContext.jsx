@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import * as authService from '../services/authService'
-import { claimGuestOrders } from '../../konsumen/services/orderService'
+import { claimGuestOrders } from '../services/orderService'
 
 const AuthContext = createContext(null)
 

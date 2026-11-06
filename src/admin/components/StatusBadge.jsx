@@ -16,6 +16,9 @@ const MAP = {
   Menipis: 'amber',
   'Menunggu Pembayaran': 'amber',
   Kedaluwarsa: 'red',
+  Dibatalkan: 'red',
+  Gagal: 'red',
+  Refund: 'red',
   Habis: 'red',
 }
 
