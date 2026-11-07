@@ -1,40 +1,80 @@
-import { Link } from 'react-router-dom'
-import StatCard from '../components/StatCard'
-import Section from '../components/Section'
-import { penjualanHarian, pesananAwal, stokAwal } from '../data/adminData'
-import { rupiah } from '../../shared/utils/format'
+import { Link } from "react-router-dom";
+import StatCard from "../components/StatCard";
+import Section from "../components/Section";
+import {
+  getSelesaiHariIni,
+  penjualanHarian,
+  pesananAwal,
+  stokAwal,
+} from "../data/adminData";
+import { rupiah } from "../../shared/utils/format";
 
 // Dashboard ringkas: hanya merangkum angka dari halaman-halaman yang ada di desain.
 export default function DashboardPage() {
-  const perluDiproses = pesananAwal.filter((p) => p.status === 'Menunggu' || p.status === 'Diproses').length
-  const stokMenipis = stokAwal.filter((s) => s.status === 'Menipis').length
+  const perluDiproses = pesananAwal.filter(
+    (p) => p.status === "Menunggu" || p.status === "Diproses",
+  ).length;
+  // [BARU] pesanan yang diselesaikan admin hari ini ikut dihitung
+  const selesai = getSelesaiHariIni();
+  const omzet =
+    penjualanHarian.omzet + selesai.reduce((s, p) => s + p.total, 0);
+  const transaksi = penjualanHarian.transaksi + selesai.length;
+  const stokMenipis = stokAwal.filter((s) => s.status === "Menipis").length;
 
   const shortcut = [
-    { to: '/admin/pesanan', icon: 'bi-receipt', label: 'Lihat pesanan masuk' },
-    { to: '/admin/produk', icon: 'bi-box-seam', label: 'Kelola produk & menu' },
-    { to: '/admin/stok', icon: 'bi-exclamation-triangle', label: 'Cek stok menipis' },
-    { to: '/admin/laporan/laba', icon: 'bi-cash-coin', label: 'Lihat laporan laba' },
-  ]
+    { to: "/admin/pesanan", icon: "bi-receipt", label: "Lihat pesanan masuk" },
+    { to: "/admin/produk", icon: "bi-box-seam", label: "Kelola produk & menu" },
+    {
+      to: "/admin/stok",
+      icon: "bi-exclamation-triangle",
+      label: "Cek stok menipis",
+    },
+    {
+      to: "/admin/laporan/laba",
+      icon: "bi-cash-coin",
+      label: "Lihat laporan laba",
+    },
+  ];
 
   return (
     <div className="w-full">
       <div className="row g-3">
         <div className="col-6 col-lg-3">
-          <StatCard label="Omzet hari ini" value={rupiah(penjualanHarian.omzet)} note="+8,2%" icon="bi-cash" />
+          <StatCard
+            label="Omzet hari ini"
+            value={rupiah(omzet)}
+            note="+8,2%"
+            icon="bi-cash"
+          />
         </div>
         <div className="col-6 col-lg-3">
-          <StatCard label="Transaksi" value={penjualanHarian.transaksi} icon="bi-receipt" />
+          <StatCard label="Transaksi" value={transaksi} icon="bi-receipt" />
         </div>
         <div className="col-6 col-lg-3">
-          <StatCard label="Pesanan perlu diproses" value={perluDiproses} note="Segera" tone="warn" icon="bi-hourglass-split" />
+          <StatCard
+            label="Pesanan perlu diproses"
+            value={perluDiproses}
+            note="Segera"
+            tone="warn"
+            icon="bi-hourglass-split"
+          />
         </div>
         <div className="col-6 col-lg-3">
-          <StatCard label="Stok menipis" value={stokMenipis} note="Perlu restock" tone="warn" icon="bi-box" />
+          <StatCard
+            label="Stok menipis"
+            value={stokMenipis}
+            note="Perlu restock"
+            tone="warn"
+            icon="bi-box"
+          />
         </div>
       </div>
 
       <div className="card-soft mt-4 p-5">
-        <Section title="Pintasan" desc="Menuju halaman yang paling sering dipakai." />
+        <Section
+          title="Pintasan"
+          desc="Menuju halaman yang paling sering dipakai."
+        />
         <div className="row g-3">
           {shortcut.map((s) => (
             <div key={s.to} className="col-12 col-sm-6 col-lg-3">
@@ -52,5 +92,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
